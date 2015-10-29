@@ -17,7 +17,13 @@
 using namespace std;
 
 UCB1::UCB1():
-    totalcount(0)
+    totalcount(0), default_count(0), default_value(0.0)
+{
+
+}
+
+UCB1::UCB1(int init_totalcount, int init_count, double init_value):
+	totalcount(init_totalcount), default_count(init_count), default_value(init_value) 
 {
 
 }
@@ -31,9 +37,12 @@ string UCB1::toString()
 {
     Json::FastWriter writer;
     Json::Value value;
+    Json::Value element;
     std::string key;
 
     value["totalcount"] = Json::Value(totalcount);
+    value["default_count"] = Json::Value(default_count);
+    value["default_value"] = Json::Value(default_value);
 
     for(auto it = frequencyReward.begin(); it !=frequencyReward.end(); it++)
     {
@@ -42,8 +51,9 @@ string UCB1::toString()
         Json::Value temp_value;
         temp_value["counts"] = Json::Value(it->second.counts);
         temp_value["keyValue"] = Json::Value(it->second.values);
-        value[key] = temp_value;
+        element[key] = temp_value;
     }
+    value["element"] = element;
     return writer.write(value);
 }
 
@@ -52,27 +62,40 @@ bool UCB1::readFromString(const string& JString)
 {
     Json::Reader reader;
     Json::Value value;
+    Json::Value element;
     std::string key;
+
     int readcount;
-    double readfloat;
+    double readdouble;
 
     if(!reader.parse(JString, value))
         return false;
 
-    auto keymember = value.getMemberNames();
+    element = value["element"];
+    auto keymember = element.getMemberNames();
     int num = keymember.size();
-    for(int i=0; i<num-1; i++)
+
+    for(int i=0; i<num; i++)
     {
         key = keymember[i];
-        readcount = value[key]["counts"].asInt();
-        readfloat = value[key]["keyValue"].asDouble();
+        readcount = element[key]["counts"].asInt();
+        readdouble = element[key]["keyValue"].asDouble();
 
-        frequencyReward.insert({key, {readcount, readfloat}});
+        frequencyReward.insert({key, {readcount, readdouble}});
     }
-    totalcount = value["totalcount"].asInt();
 
+    totalcount = value["totalcount"].asInt();
+    default_count = value["default_count"].asInt();
+    default_value = value["default_value"].asDouble();
     return true;
 }
+
+bool UCB1::insert(string &key)
+{
+    auto ret = frequencyReward.insert({key, {default_count, default_value}});
+    return ret.second;
+}
+
 
 bool UCB1::insert(string& key, UCB value)
 {
@@ -80,6 +103,50 @@ bool UCB1::insert(string& key, UCB value)
     return ret.second;
 }
 
+void UCB1::add_totalcount(int num)
+{
+	totalcount += num;
+}
+
+void UCB1::set_totalcount(int number)
+{
+	totalcount = number;
+}
+
+
+string UCB1::get_totalcount()
+{
+	char temp[25];
+	sprintf(temp,"%d", totalcount);
+	string totalcountstr(temp);
+	return totalcountstr;
+}
+
+string UCB1::get_count(string key)
+{
+	string countstr;
+	auto origin = frequencyReward.find(key);
+	if(origin == frequencyReward.end())
+		return countstr;
+
+	char temp[25];
+	sprintf(temp, "%d", origin->second.counts);
+	countstr = temp;
+	return countstr;
+}
+
+string UCB1::get_value(string key)
+{
+	string valuestr;
+	auto origin = frequencyReward.find(key);
+	if(origin == frequencyReward.end())
+		return valuestr;
+
+	char temp[25];
+	sprintf(temp, "%f", origin->second.values);
+	valuestr = temp;
+	return valuestr;
+}
 
 
 bool UCB1::update(const char * start, double res)
@@ -90,23 +157,43 @@ bool UCB1::update(const char * start, double res)
 
 
 
-
-
 bool UCB1::update(string& key, double res)
 {
 	auto origin = frequencyReward.find(key);
 	if(origin == frequencyReward.end())
     {
-	    auto ret = frequencyReward.insert({ key, {0,0.0} });
+	    auto ret = frequencyReward.insert({ key, {default_count, default_value} });
         return true;
     }
 
 
 	double n = ++origin->second.counts;
 	origin->second.values = origin->second.values*(n-1)/n + res/n;
-    ++this->totalcount;
+//    ++this->totalcount;
 
 	return true;
+}
+
+bool UCB1::update_reset_last(string & key, double last, double res)
+{
+	auto origin = frequencyReward.find(key);
+	if(origin == frequencyReward.end())
+    {
+	    auto ret = frequencyReward.insert({ key, {default_count, default_value} });
+        return true;
+    }
+
+
+	double n = origin->second.counts;
+	origin->second.values = (origin->second.values*n -last + res)/n;
+
+	return true;
+
+}
+bool UCB1::update_reset_last(const char *start, double last, double res)
+{
+    string key(start);
+    return update_reset_last(key, last, res);
 }
 
 string UCB1::select_arm()
@@ -140,7 +227,6 @@ std::vector<std::string> & UCB1::select_arm_N(size_t n)
 {
     keystrs.clear();
     int countzero= 0;
-    int count =0;
 
     if(n ==0)
         return keystrs;
@@ -168,19 +254,14 @@ std::vector<std::string> & UCB1::select_arm_N(size_t n)
             ++countzero;
         }
         else
-        {
-
+        {		
 	    	bonus = sqrt(2* log((double)totalcount))/it->second.counts;
             valuenow = bonus +it->second.values;
-            int i;
-            if(count < n - countzero)
-                i = count;
-            else
-                i = n - countzero;
 
+            int i=n;
             while(i>0)
             {
-                if(valuenow > maxvalue[i-1])
+                if(valuenow >= maxvalue[i-1])
                 {
                     maxvalue[i] = maxvalue[i-1];
                     maxkey[i] = maxkey[i-1];
@@ -193,7 +274,6 @@ std::vector<std::string> & UCB1::select_arm_N(size_t n)
             maxvalue[i] = valuenow;
             maxkey[i] = it->first;
 
-            ++count;
 
     	}
     }
@@ -206,6 +286,10 @@ std::vector<std::string> & UCB1::select_arm_N(size_t n)
         i++;
     }
 
+    for(int i=0; i<keystrs.size(); i++)
+        update(keystrs[i], default_count);
+
+    this->add_totalcount(1);
 
     return keystrs;
 
