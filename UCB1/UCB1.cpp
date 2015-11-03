@@ -174,7 +174,7 @@ bool UCB1::update(string& key, double res)
 	return true;
 }
 
-bool UCB1::update_reset_last(string & key, double last, double res)
+bool UCB1::update_reset_last(string & key, double res)
 {
 	auto origin = frequencyReward.find(key);
 	if(origin == frequencyReward.end())
@@ -185,15 +185,15 @@ bool UCB1::update_reset_last(string & key, double last, double res)
 
 
 	double n = origin->second.counts;
-	origin->second.values = (origin->second.values*n -last + res)/n;
+	origin->second.values = (origin->second.values*n -default_value + res)/n;
 
 	return true;
 
 }
-bool UCB1::update_reset_last(const char *start, double last, double res)
+bool UCB1::update_reset_last(const char *start, double res)
 {
     string key(start);
-    return update_reset_last(key, last, res);
+    return update_reset_last(key, res);
 }
 
 string UCB1::select_arm()
@@ -227,6 +227,7 @@ std::vector<std::string> & UCB1::select_arm_N(size_t n)
 {
     keystrs.clear();
     int countzero= 0;
+    int count = 0;
 
     if(n ==0)
         return keystrs;
@@ -258,10 +259,15 @@ std::vector<std::string> & UCB1::select_arm_N(size_t n)
 	    	bonus = sqrt(2* log((double)totalcount))/it->second.counts;
             valuenow = bonus +it->second.values;
 
-            int i=n;
+            int i;
+            if(count < n - countzero)
+                i = count;
+            else
+                i = n - countzero;
+
             while(i>0)
             {
-                if(valuenow >= maxvalue[i-1])
+                if(valuenow > maxvalue[i-1])
                 {
                     maxvalue[i] = maxvalue[i-1];
                     maxkey[i] = maxkey[i-1];
@@ -273,7 +279,7 @@ std::vector<std::string> & UCB1::select_arm_N(size_t n)
             }
             maxvalue[i] = valuenow;
             maxkey[i] = it->first;
-
+		++count;
 
     	}
     }
@@ -287,7 +293,7 @@ std::vector<std::string> & UCB1::select_arm_N(size_t n)
     }
 
     for(int i=0; i<keystrs.size(); i++)
-        update(keystrs[i], default_count);
+        update(keystrs[i], default_value);
 
     this->add_totalcount(1);
 

@@ -42,8 +42,8 @@ public:
 	bool update(string & key, double res);
     bool update(const char *start, double res);
 
-	bool update_reset_last(string & key, double last, double res);
-    bool update_reset_last(const char *start, double last, double res);
+	bool update_reset_last(string & key, double res);
+    bool update_reset_last(const char *start, double res);
 
     string toString();
     bool readFromString(const string& JString);
