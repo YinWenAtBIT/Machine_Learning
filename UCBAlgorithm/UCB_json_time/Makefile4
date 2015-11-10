@@ -1,0 +1,31 @@
+
+C=gcc
+CXX=g++
+CFLAGS= -g -D_DEBUG -fPIC -Wshadow -Wcast-qual -Wcast-align -Wwrite-strings -Wsign-compare -Winvalid-pch -fms-extensions -Wall -MMD
+CPPFLAGS=$(CFLAGS) -Woverloaded-virtual -Wsign-promo -fno-gnu-keywords -std=c++11 
+
+DEPS=-I/home/yw/jsoncpp-src-0.5.0/include -I/home/yw/github/served/src/  /home/yw/jsoncpp-src-0.5.0/libs/linux-gcc-4.8.3/libjson_linux-gcc-4.8.3_libmt.a 
+
+LIBPATH=/home/yw/github/served/lib
+
+LIB=-lserved -lboost_system-mt -lstdc++
+
+#-lboost_system-mt -lstdc++
+
+OBJS=read_test.o UCB1.o
+
+TARGET=unit_read
+
+
+ALL: $(TARGET)
+
+$(TARGET):$(OBJS) 
+	$(CXX) $(CPPFLAGS) -o $(TARGET) $(OBJS) $(DEPS) 
+
+
+read_test.o:read_test.cpp
+	$(CXX) $(CPPFLAGS) -c $<  $(DEPS)
+
+UCB1.o: UCB1.cpp 
+	$(CXX) $(CPPFLAGS) -c $<  $(DEPS)
+	
